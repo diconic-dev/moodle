@@ -1,0 +1,6 @@
+Moodle 5.3.1 (Build: 20261112)
+Branch upstream : MOODLE_503_STABLE
+Commit upstream : cfe123f26fc7071981fe949cb16cd5a08a8234f1
+Tag terdekat    : v5.3.1 / cfe123f26
+Sumber          : https://github.com/moodle/moodle
+Diambil         : 2026-11-14T13:59:52Z
