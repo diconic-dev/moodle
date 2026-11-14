@@ -1,0 +1,77 @@
+# Build context exclusions. The single biggest win: .git alone is ~117MB.
+# Keep this file in sync with the Dockerfile's COPY expectations.
+
+# --- Version control -------------------------------------------------------
+.git
+.gitignore
+.gitattributes
+.github
+.gitlab-ci.yml
+
+# --- Data that must never enter an image -----------------------------------
+# Runtime data belongs on volumes, not in the image.
+config.php
+moodledata/
+*.log
+
+# --- Secrets ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- Test / QA tooling (≈28MB of tests across public/*/tests) --------------
+public/*/tests/
+public/lib/tests/
+public/lib/behat/
+phpunit.xml.dist
+phpcs.xml.dist
+.gherkin-lintrc
+.jest/
+.jshintrc
+.jshintignore
+.stylelintrc
+.eslintrc
+.rector/
+phpstorm.meta.php/
+.phpstorm.meta.php
+
+# --- Frontend build tooling (assets are already built into public/) --------
+Gruntfile.js
+package.json
+npm-shrinkwrap.json
+.esbuild/
+.grunt/
+tsconfig.json
+tsconfig.jest.json
+jest.config.js
+.stylelintrc
+.shifter.json
+
+# --- Docs / metadata not needed at runtime ---------------------------------
+.upgradenotes/
+CONTRIBUTING.md
+UPGRADING.md
+README.md
+TRADEMARK.txt
+MOODLE_UPSTREAM.txt
+
+# --- Optional: ~203MB. Remove this line if you need Google Workspace,
+# --- Google OAuth login, or Google Classroom integration.
+public/lib/google2-service/
+
+# --- Docker files themselves ----------------------------------------------
+# docker/ must stay in the context: the Dockerfile COPYs its entrypoint,
+# healthcheck, php.ini and nginx.conf from there. Excluding it breaks the build.
+Dockerfile
+.dockerignore
+compose.yaml
+.env
+.env.*
+!.env.example
+
+# --- Editor / OS noise -----------------------------------------------------
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

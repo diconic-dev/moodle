@@ -1,0 +1,136 @@
+# Moodle 5.3.1 — nginx + php-fpm + MariaDB
+#
+# Start:   docker compose up -d --build
+# Install: docker compose exec app php admin/cli/install_database.php --help
+# Open:    http://localhost:8080
+
+name: moodle
+
+services:
+  # ---------------------------------------------------------------------------
+  # Database
+  # ---------------------------------------------------------------------------
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${MOODLE_DB_NAME:-moodle}
+      MARIADB_USER: ${MOODLE_DB_USER:-moodle}
+      MARIADB_PASSWORD: ${MOODLE_DB_PASSWORD:?set MOODLE_DB_PASSWORD in .env}
+      MARIADB_ROOT_PASSWORD: ${MOODLE_DB_ROOT_PASSWORD:?set MOODLE_DB_ROOT_PASSWORD in .env}
+      MARIADB_AUTO_UPGRADE: "1"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-file-per-table=1
+      - --skip-log-bin
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - moodle
+
+  # ---------------------------------------------------------------------------
+  # Application (php-fpm + Moodle source)
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    environment:
+      MOODLE_DB_TYPE: mariadb
+      MOODLE_DB_HOST: db
+      MOODLE_DB_PORT: "3306"
+      MOODLE_DB_NAME: ${MOODLE_DB_NAME:-moodle}
+      MOODLE_DB_USER: ${MOODLE_DB_USER:-moodle}
+      MOODLE_DB_PASSWORD: ${MOODLE_DB_PASSWORD:?set MOODLE_DB_PASSWORD in .env}
+      MOODLE_WWWROOT: ${MOODLE_WWWROOT:-http://localhost:8080}
+      MOODLE_DATAROOT: /var/www/moodledata
+      MOODLE_SITE_LANG: ${MOODLE_SITE_LANG:-en}
+      MOODLE_REVERSEPROXY: ${MOODLE_REVERSEPROXY:-0}
+      MOODLE_SSLPROXY: ${MOODLE_SSLPROXY:-0}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - moodledata:/var/www/moodledata
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - moodle
+
+  # ---------------------------------------------------------------------------
+  # Web front end
+  # Kode di-mount read-only supaya nginx bisa melayani aset statis tanpa
+  # menduplikasi image. Container ini tidak menulis apa pun ke source tree.
+  # ---------------------------------------------------------------------------
+  web:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "${MOODLE_HTTP_PORT:-8080}:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Read-only lens onto the source tree; the files themselves live in the
+      # app image. This mount is the only thing nginx needs.
+      - .:/var/www/moodle:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - moodle
+
+  # ---------------------------------------------------------------------------
+  # Cron
+  # Reuses the app image: no extra size, identical code and config.
+  # Moodle degrades visibly without this (notifications, tasks, cleanup).
+  # ---------------------------------------------------------------------------
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    environment:
+      MOODLE_DB_TYPE: mariadb
+      MOODLE_DB_HOST: db
+      MOODLE_DB_PORT: "3306"
+      MOODLE_DB_NAME: ${MOODLE_DB_NAME:-moodle}
+      MOODLE_DB_USER: ${MOODLE_DB_USER:-moodle}
+      MOODLE_DB_PASSWORD: ${MOODLE_DB_PASSWORD:?set MOODLE_DB_PASSWORD in .env}
+      MOODLE_WWWROOT: ${MOODLE_WWWROOT:-http://localhost:8080}
+      MOODLE_DATAROOT: /var/www/moodledata
+      TZ: ${TZ:-UTC}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        while true; do
+          sleep 60
+          php /var/www/moodle/admin/cli/cron.php || echo "[cron] run failed, retrying next minute"
+        done
+    volumes:
+      - moodledata:/var/www/moodledata
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    networks:
+      - moodle
+
+volumes:
+  dbdata:
+    driver: local
+  moodledata:
+    driver: local
+
+networks:
+  moodle:
+    driver: bridge
