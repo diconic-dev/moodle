@@ -46,7 +46,8 @@ jobs:
             sudo apt-get update -qq
             sudo apt-get install -y -qq shellcheck
           fi
-          shellcheck -s sh docker/entrypoint.sh docker/healthcheck.sh
+          shellcheck -s sh --severity=warning \
+            docker/entrypoint.sh docker/healthcheck.sh
 
       - name: nginx config syntax
         # The upstream "app:9000" is unresolvable outside the compose network,

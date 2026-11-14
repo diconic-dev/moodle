@@ -71,27 +71,32 @@ else
         echo 'global $CFG;'
         echo '$CFG = new stdClass();'
         echo ''
-        echo "\$CFG->dbtype    = '"$(php_esc "$DB_TYPE")"';"
-        echo "\$CFG->dblibrary = 'native';"
-        echo "\$CFG->dbhost    = '"$(php_esc "$DB_HOST")"';"
-        echo "\$CFG->dbname    = '"$(php_esc "$DB_NAME")"';"
-        echo "\$CFG->dbuser    = '"$(php_esc "$DB_USER")"';"
-        echo "\$CFG->dbpass    = '"$(php_esc "$DB_PASS")"';"
-        echo "\$CFG->prefix    = '"$(php_esc "$PREFIX")"';"
+        # Each assignment is built by printf so the value is never word-split
+        # and single quotes in it cannot break out of the PHP string literal.
+        printf "\$CFG->dbtype    = '%s';\n" "$(php_esc "$DB_TYPE")"
+        echo '$CFG->dblibrary = '\''native'\'';'
+        printf "\$CFG->dbhost    = '%s';\n" "$(php_esc "$DB_HOST")"
+        printf "\$CFG->dbname    = '%s';\n" "$(php_esc "$DB_NAME")"
+        printf "\$CFG->dbuser    = '%s';\n" "$(php_esc "$DB_USER")"
+        printf "\$CFG->dbpass    = '%s';\n" "$(php_esc "$DB_PASS")"
+        printf "\$CFG->prefix    = '%s';\n" "$(php_esc "$PREFIX")"
         echo '$CFG->dboptions = ['
-        echo "    'dbport'      => '"$(php_esc "$DB_PORT")"',"
+        printf "    'dbport'      => '%s',\n" "$(php_esc "$DB_PORT")"
         echo "    'dbsocket'    => '',"
         echo "    'dbcollation' => 'utf8mb4_unicode_ci',"
         echo '];'
         echo ''
-        echo "\$CFG->wwwroot  = '"$(php_esc "$WWWROOT")"';"
-        echo "\$CFG->dataroot = '"$(php_esc "$DATAROOT")"';"
-        echo "\$CFG->admin    = 'admin';"
+        printf "\$CFG->wwwroot  = '%s';\n" "$(php_esc "$WWWROOT")"
+        printf "\$CFG->dataroot = '%s';\n" "$(php_esc "$DATAROOT")"
+        echo '$CFG->admin    = '\''admin'\'';'
         echo '$CFG->directorypermissions = 02777;'
         echo ''
         echo '// Keep generated URLs correct behind a reverse proxy / LB.'
-        echo "\$CFG->reverseproxy = ${MOODLE_REVERSEPROXY:-0};"
-        echo "\$CFG->sslproxy     = ${MOODLE_SSLPROXY:-0};"
+        # The leading $CFG must reach config.php literally, so the dollar sign
+        # is emitted from a separate quoted argument instead of being escaped
+        # inside a format string (\$ in printf would print a literal backslash).
+        printf '%s->reverseproxy = %s;\n' '$CFG' "${MOODLE_REVERSEPROXY:-0}"
+        printf '%s->sslproxy     = %s;\n' '$CFG' "${MOODLE_SSLPROXY:-0}"
         echo ''
         echo "require_once(__DIR__ . '/lib/setup.php');"
     } > "$CONFIG"
