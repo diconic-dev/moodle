@@ -127,21 +127,19 @@ jobs:
           RELEASE=$(printf '%s' "$RELEASE" | sed 's/[[:space:]]*(Build:.*//')
           echo "release=${RELEASE:-unknown}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
-        id: build
+      # Step 1: build into the local daemon only, so the smoke test can inspect
+      # the exact artefact before anything is published. A failing test must
+      # never leave a broken tag on the registry.
+      - name: Build image (local only)
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           target: runtime
-          # Never push from a pull request, even a same-repo one.
-          push: ${{ github.event_name != 'pull_request' }}
-          # Load into the local daemon so the smoke test reuses this exact
-          # build instead of rebuilding it from scratch.
           load: true
-          tags: |
-            moodle:ci
-            ${{ steps.meta.outputs.tags }}
+          # Prefixed local-only name: a bare "moodle:ci" tag would be resolved
+          # against Docker Hub during push and fail authorization.
+          tags: local/moodle:ci
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.title=Moodle
@@ -150,18 +148,17 @@ jobs:
           # composer install from scratch.
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
 
       - name: Smoke test the built image
         run: |
+          IMG=local/moodle:ci
           # php-fpm binary present and executable
-          docker run --rm --entrypoint php moodle:ci -v
+          docker run --rm --entrypoint php "$IMG" -v
           # Moodle source readable and version file intact
-          docker run --rm --entrypoint sh moodle:ci -c 'test -r /var/www/moodle/public/index.php'
-          docker run --rm --entrypoint sh moodle:ci -c 'test -r /var/www/moodle/public/version.php'
+          docker run --rm --entrypoint sh "$IMG" -c 'test -r /var/www/moodle/public/index.php'
+          docker run --rm --entrypoint sh "$IMG" -c 'test -r /var/www/moodle/public/version.php'
           # Every extension Moodle requires must be loaded
-          docker run --rm --entrypoint php moodle:ci -r '
+          docker run --rm --entrypoint php "$IMG" -r '
             $required = ["ctype","curl","dom","exif","fileinfo","gd","hash","iconv","intl","json","mbstring","mysqli","openssl","pcre","simplexml","soap","sodium","spl","tokenizer","xml","xmlreader","zip","zlib"];
             $have = array_map("strtolower", get_loaded_extensions());
             $missing = array_values(array_diff($required, $have));
@@ -169,10 +166,21 @@ jobs:
             echo "all required extensions present\n";
           '
           # Entrypoint and healthcheck must be executable
-          docker run --rm --entrypoint sh moodle:ci -c 'test -x /usr/local/bin/moodle-entrypoint'
-          docker run --rm --entrypoint sh moodle:ci -c 'test -x /usr/local/bin/moodle-healthcheck'
+          docker run --rm --entrypoint sh "$IMG" -c 'test -x /usr/local/bin/moodle-entrypoint'
+          docker run --rm --entrypoint sh "$IMG" -c 'test -x /usr/local/bin/moodle-healthcheck'
 
       - name: Report image size
         run: |
-          docker image inspect moodle:ci --format '{{.Size}}' \
+          docker image inspect local/moodle:ci --format '{{.Size}}' \
             | awk '{printf "image size: %.1f MB\n", $1/1024/1024}'
+
+      # Step 2: publish. Only reached when the smoke test above passed, and
+      # never on a pull request.
+      - name: Push to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        run: |
+          for tag in $(echo "${{ steps.meta.outputs.tags }}" | tr ',' ' '); do
+            echo "pushing $tag"
+            docker tag local/moodle:ci "$tag"
+            docker push "$tag"
+          done
