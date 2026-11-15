@@ -1,126 +1,122 @@
-# Moodle
+# Moodle Docker Deployment
 
-<p align="center"><a href="https://moodle.org" target="_blank" title="Moodle Website">
-  <img src="https://raw.githubusercontent.com/moodle/moodle/main/.github/moodlelogo.svg" alt="The Moodle Logo">
-</a></p>
+Moodle berjalan sebagai stack Docker Compose dengan PHP-FPM, nginx, MariaDB,
+dan worker cron. Development membangun image dari source lokal, sedangkan
+production menarik image release dari GitHub Container Registry (GHCR).
 
-[Moodle][1] is the World's Open Source Learning Platform, widely used around the world by countless universities, schools, companies, and all manner of organisations and individuals.
+## Arsitektur
 
-Moodle is designed to allow educators, administrators and learners to create personalised learning environments with a single robust, secure and integrated system.
+| Service | Development | Production |
+| --- | --- | --- |
+| `app` | Image dibangun lokal | `ghcr.io/diconic-dev/moodle:<version>` |
+| `web` | nginx dengan source tree read-only | `ghcr.io/diconic-dev/moodle:<version>-web` |
+| `db` | MariaDB 11 | MariaDB 11 |
+| `cron` | Memakai image `app` | Memakai image release `app` |
 
-## Docker
+Database dan `moodledata` disimpan dalam named volume Docker.
 
-This repository provides separate Docker Compose flows for development and
-production. The application image contains PHP-FPM and Moodle; the production
-web image contains nginx and the static Moodle assets. Database and uploaded
-files are stored in named Docker volumes.
+## Development
 
-### Development
-
-Create the local environment file and start the stack:
+Salin template environment lalu isi password database:
 
 ```bash
 cp .env.example .env
-# Edit .env and set MOODLE_DB_PASSWORD and MOODLE_DB_ROOT_PASSWORD.
 docker compose up -d --build
 ```
 
-Open [http://localhost:8080](http://localhost:8080). The development stack
-builds the application locally and mounts the source tree into nginx, which
-is convenient for development.
+Buka <http://localhost:8080>.
 
-Check service status and logs with:
+Perintah yang berguna:
 
 ```bash
 docker compose ps
 docker compose logs -f app
+docker compose exec app php admin/cli/cron.php
+docker compose down
 ```
 
-### Production
+Development menggunakan [compose.yaml](./compose.yaml), membangun image
+aplikasi dari `Dockerfile`, dan me-mount source tree ke container nginx.
 
-Production pulls immutable release images from GitHub Container Registry; the
-server does not need the source code or Dockerfile.
+## Production
 
-1. Copy the environment template and set production values:
+Production tidak membutuhkan source code atau Dockerfile pada server.
 
-   ```bash
-   cp .env.example .env
-   ```
+### 1. Siapkan environment
 
-   Set at least:
+```bash
+cp .env.example .env
+```
 
-   ```env
-   MOODLE_DB_PASSWORD=<strong-database-password>
-   MOODLE_DB_ROOT_PASSWORD=<strong-root-password>
-   MOODLE_WWWROOT=https://moodle.example.com
-   MOODLE_IMAGE_TAG=5.3.1
-   MOODLE_REVERSEPROXY=1
-   MOODLE_SSLPROXY=1
-   ```
+Setidaknya ubah nilai berikut di `.env`:
 
-2. If the GHCR images are private, authenticate on the server:
+```env
+MOODLE_DB_PASSWORD=<strong-database-password>
+MOODLE_DB_ROOT_PASSWORD=<strong-root-password>
+MOODLE_WWWROOT=https://moodle.example.com
+MOODLE_IMAGE_TAG=5.3.1
+MOODLE_REVERSEPROXY=1
+MOODLE_SSLPROXY=1
+```
 
-   ```bash
-   echo "$CR_PAT" | docker login ghcr.io -u GITHUB_USERNAME --password-stdin
-   ```
+Gunakan tag release immutable, bukan `latest`.
 
-3. Pull and start the release:
+### 2. Login ke GHCR
 
-   ```bash
-   docker compose -f compose.production.yaml pull
-   docker compose -f compose.production.yaml up -d
-   ```
+Jalankan ini jika package GHCR bersifat private:
 
-4. Verify the deployment:
+```bash
+echo "$CR_PAT" | docker login ghcr.io -u GITHUB_USERNAME --password-stdin
+```
 
-   ```bash
-   docker compose -f compose.production.yaml ps
-   docker compose -f compose.production.yaml logs -f app
-   ```
+### 3. Deploy
 
-GitHub Actions builds and publishes the application image as
-`ghcr.io/diconic-dev/moodle:<version>` and the nginx image as
-`ghcr.io/diconic-dev/moodle:<version>-web`. Deploy a new release by changing
-`MOODLE_IMAGE_TAG` and running `pull` followed by `up -d`.
+```bash
+docker compose -f compose.production.yaml pull
+docker compose -f compose.production.yaml up -d
+```
 
-Do not run `docker compose down -v` on production unless database and uploaded
-file volumes have been backed up and are intentionally being removed.
+Periksa status dan log:
 
-## Documentation
+```bash
+docker compose -f compose.production.yaml ps
+docker compose -f compose.production.yaml logs -f app
+```
 
-- Read our [User documentation][3]
-- Discover our [developer documentation][5]
-- Take a look at our [demo site][4]
+Untuk update versi, ubah `MOODLE_IMAGE_TAG`, lalu jalankan kembali:
 
-## Community
+```bash
+docker compose -f compose.production.yaml pull
+docker compose -f compose.production.yaml up -d
+```
 
-[moodle.org][1] is the central hub for the Moodle Community, with spaces for educators, administrators and developers to meet and work together.
+Jangan menjalankan `docker compose down -v` di production kecuali volume
+database dan `moodledata` sudah dibackup dan memang ingin dihapus.
 
-You may also be interested in:
+## Image CI/CD
 
-- attending a [Moodle Moot][6]
-- our regular series of [developer meetings][7]
-- the [Moodle User Association][8]
+GitHub Actions di [.github/workflows/build.yml](./.github/workflows/build.yml)
+akan:
 
-## Installation and hosting
+1. Memvalidasi konfigurasi Docker dan script shell.
+2. Membuat serta menguji image PHP-FPM.
+3. Membuat dan mem-publish image nginx.
+4. Mendorong image ke GHCR pada push ke `main` atau tag `v*`.
 
-Moodle is Free, and Open Source software. You can easily [download Moodle][9] and run it on your own web server, however you may prefer to work with one of our experienced [Moodle Partners][10].
+Image yang dipublikasikan:
 
-Moodle also offers hosting through both [MoodleCloud][11], and our [partner network][10].
+```text
+ghcr.io/diconic-dev/moodle:<version>
+ghcr.io/diconic-dev/moodle:<version>-web
+```
 
-## License
+Pull request hanya melakukan build dan smoke test; image tidak dipublish.
 
-Moodle is provided freely as open source software, under version 3 of the GNU General Public License. See our [license page][12] for more information.
+## Konfigurasi
 
-[1]: https://moodle.org
-[2]: https://moodle.com
-[3]: https://docs.moodle.org/
-[4]: https://sandbox.moodledemo.net/
-[5]: https://moodledev.io
-[6]: https://moodle.com/events/mootglobal/
-[7]: https://moodledev.io/general/community/meetings
-[8]: https://moodleassociation.org/
-[9]: https://download.moodle.org
-[10]: https://moodle.com/partners
-[11]: https://moodle.com/cloud
-[12]: https://moodledev.io/general/license
+Gunakan [.env.example](./.env.example) sebagai template. Jangan commit file
+`.env` atau secret ke repository.
+
+Entrypoint membuat `config.php` secara otomatis dari environment variables saat
+container aplikasi pertama kali berjalan. Tidak perlu membuat `config.php`
+secara manual untuk deployment Docker.
