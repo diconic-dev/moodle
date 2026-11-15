@@ -55,7 +55,7 @@ services:
       MOODLE_WWWROOT: ${MOODLE_WWWROOT:-http://localhost:8080}
       MOODLE_DATAROOT: /var/www/moodledata
       MOODLE_SITE_LANG: ${MOODLE_SITE_LANG:-en}
-      MOODLE_REVERSEPROXY: ${MOODLE_REVERSEPROXY:-0}
+      MOODLE_REVERSEPROXY: ${MOODLE_REVERSEPROXY:-1}
       MOODLE_SSLPROXY: ${MOODLE_SSLPROXY:-0}
       TZ: ${TZ:-UTC}
     volumes:
@@ -96,6 +96,8 @@ services:
   cron:
     image: moodle:local
     restart: unless-stopped
+    healthcheck:
+      disable: true
     environment:
       MOODLE_DB_TYPE: mariadb
       MOODLE_DB_HOST: db

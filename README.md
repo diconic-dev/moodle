@@ -24,7 +24,10 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Buka <http://localhost:8080>.
+Buka <http://localhost:8080>. Jangan membuka `http://localhost:9000`:
+service `app` menjalankan PHP-FPM pada port FastCGI internal, bukan HTTP.
+Port `9000` tidak dipublish ke host; request browser harus masuk melalui
+service nginx `web` pada port `8080`.
 
 Perintah yang berguna:
 
