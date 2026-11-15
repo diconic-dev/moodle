@@ -184,3 +184,16 @@ jobs:
             docker tag local/moodle:ci "$tag"
             docker push "$tag"
           done
+
+      - name: Build and push nginx image
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: web
+          push: true
+          tags: |
+            ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.moodle.outputs.release }}-web
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -39,6 +39,7 @@ services:
   # Application (php-fpm + Moodle source)
   # ---------------------------------------------------------------------------
   app:
+    image: moodle:local
     build:
       context: .
       dockerfile: Dockerfile
@@ -92,10 +93,7 @@ services:
   # Moodle degrades visibly without this (notifications, tasks, cleanup).
   # ---------------------------------------------------------------------------
   cron:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
+    image: moodle:local
     restart: unless-stopped
     environment:
       MOODLE_DB_TYPE: mariadb

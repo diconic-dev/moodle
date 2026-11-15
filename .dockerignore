@@ -12,6 +12,8 @@
 # Runtime data belongs on volumes, not in the image.
 config.php
 moodledata/
+vendor/
+node_modules/
 *.log
 
 # --- Secrets ---------------------------------------------------------------

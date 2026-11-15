@@ -17,7 +17,8 @@ COPY composer.json composer.lock ./
 # ext-gd, ext-mysqli, ...). Installing them there would bloat a stage that is
 # thrown away, so platform checks are skipped. The runtime stage installs and
 # provides every extension for real — that is what actually serves requests.
-RUN composer install \
+RUN --mount=type=cache,target=/tmp/composer-cache \
+    COMPOSER_CACHE_DIR=/tmp/composer-cache composer install \
         --no-dev \
         --no-scripts \
         --no-interaction \
@@ -118,3 +119,11 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
 
 ENTRYPOINT ["/usr/local/bin/moodle-entrypoint"]
 CMD ["php-fpm", "-F"]
+
+###############################################################################
+# Stage 3 — web (nginx static assets)
+###############################################################################
+FROM nginx:1.27-alpine AS web
+
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=runtime /var/www/moodle/public /var/www/moodle/public
