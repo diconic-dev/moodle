@@ -61,15 +61,7 @@ MOODLE_SSLPROXY=1
 
 Gunakan tag release immutable, bukan `latest`.
 
-### 2. Login ke GHCR
-
-Jalankan ini jika package GHCR bersifat private:
-
-```bash
-echo "$CR_PAT" | docker login ghcr.io -u GITHUB_USERNAME --password-stdin
-```
-
-### 3. Deploy
+### 2. Deploy
 
 ```bash
 docker compose -f compose.production.yaml pull
@@ -103,7 +95,7 @@ akan:
 3. Membuat dan mem-publish image nginx.
 4. Mendorong image ke GHCR pada push ke `main` atau tag `v*`.
 
-Image yang dipublikasikan:
+Image public yang dipublikasikan:
 
 ```text
 ghcr.io/diconic-dev/moodle:<version>
