@@ -8,6 +8,84 @@
 
 Moodle is designed to allow educators, administrators and learners to create personalised learning environments with a single robust, secure and integrated system.
 
+## Docker
+
+This repository provides separate Docker Compose flows for development and
+production. The application image contains PHP-FPM and Moodle; the production
+web image contains nginx and the static Moodle assets. Database and uploaded
+files are stored in named Docker volumes.
+
+### Development
+
+Create the local environment file and start the stack:
+
+```bash
+cp .env.example .env
+# Edit .env and set MOODLE_DB_PASSWORD and MOODLE_DB_ROOT_PASSWORD.
+docker compose up -d --build
+```
+
+Open [http://localhost:8080](http://localhost:8080). The development stack
+builds the application locally and mounts the source tree into nginx, which
+is convenient for development.
+
+Check service status and logs with:
+
+```bash
+docker compose ps
+docker compose logs -f app
+```
+
+### Production
+
+Production pulls immutable release images from GitHub Container Registry; the
+server does not need the source code or Dockerfile.
+
+1. Copy the environment template and set production values:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Set at least:
+
+   ```env
+   MOODLE_DB_PASSWORD=<strong-database-password>
+   MOODLE_DB_ROOT_PASSWORD=<strong-root-password>
+   MOODLE_WWWROOT=https://moodle.example.com
+   MOODLE_IMAGE_TAG=5.3.1
+   MOODLE_REVERSEPROXY=1
+   MOODLE_SSLPROXY=1
+   ```
+
+2. If the GHCR images are private, authenticate on the server:
+
+   ```bash
+   echo "$CR_PAT" | docker login ghcr.io -u GITHUB_USERNAME --password-stdin
+   ```
+
+3. Pull and start the release:
+
+   ```bash
+   docker compose -f compose.production.yaml pull
+   docker compose -f compose.production.yaml up -d
+   ```
+
+4. Verify the deployment:
+
+   ```bash
+   docker compose -f compose.production.yaml ps
+   docker compose -f compose.production.yaml logs -f app
+   ```
+
+GitHub Actions builds and publishes the application image as
+`ghcr.io/diconic-dev/moodle:<version>` and the nginx image as
+`ghcr.io/diconic-dev/moodle:<version>-web`. Deploy a new release by changing
+`MOODLE_IMAGE_TAG` and running `pull` followed by `up -d`.
+
+Do not run `docker compose down -v` on production unless database and uploaded
+file volumes have been backed up and are intentionally being removed.
+
 ## Documentation
 
 - Read our [User documentation][3]
