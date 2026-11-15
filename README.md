@@ -24,6 +24,19 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+Untuk setup pertama kali, jalankan wizard berikut dari root repository:
+
+```bash
+./moodle-install.sh
+```
+
+Wizard akan meminta environment (`dev` atau `prod`), mengisi `.env`, meminta
+password database, menyalakan stack, lalu membuat database dan akun admin.
+Untuk database yang sudah terpasang, jangan menjalankan wizard ini lagi.
+Gunakan [moodle-upgrade.sh](./moodle-upgrade.sh) setelah perubahan plugin.
+Wizard akan berhenti otomatis jika volume database `moodle_dbdata` sudah ada,
+agar password database lama tidak tertimpa secara tidak sengaja.
+
 Buka <http://localhost:8080>. Jangan membuka `http://localhost:9000`:
 service `app` menjalankan PHP-FPM pada port FastCGI internal, bukan HTTP.
 Port `9000` tidak dipublish ke host; request browser harus masuk melalui
@@ -105,6 +118,17 @@ Gunakan tag release immutable, bukan `latest`.
 docker compose -f compose.production.yaml pull
 docker compose -f compose.production.yaml up -d
 ```
+
+Alternatifnya, setup production dapat dijalankan melalui wizard:
+
+```bash
+./moodle-install.sh
+```
+
+Pilih `prod` saat diminta. Wizard akan menggunakan
+`compose.production.yaml`, meminta URL dan tag image production, lalu
+menjalankan inisialisasi database. Jangan menjalankannya pada database Moodle
+yang sudah terpasang.
 
 Periksa status dan log:
 
