@@ -90,6 +90,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Log in to GitHub Container Registry
         # Skip on PRs from forks: they have no access to secrets, and pushing
         # from an untrusted PR would be a supply-chain risk.
@@ -180,16 +183,24 @@ jobs:
           docker image inspect local/moodle:ci --format '{{.Size}}' \
             | awk '{printf "image size: %.1f MB\n", $1/1024/1024}'
 
-      # Step 2: publish. Only reached when the smoke test above passed, and
-      # never on a pull request.
-      - name: Push to GitHub Container Registry
+      # Step 2: publish multi-architecture images. Only reached when the smoke
+      # test above passed, and never on a pull request.
+      - name: Build and push application image
         if: github.event_name != 'pull_request'
-        run: |
-          for tag in $(echo "${{ steps.meta.outputs.tags }}" | tr ',' ' '); do
-            echo "pushing $tag"
-            docker tag local/moodle:ci "$tag"
-            docker push "$tag"
-          done
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: runtime
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.title=Moodle
+            org.opencontainers.image.version=${{ steps.moodle.outputs.release }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push nginx image
         if: github.event_name != 'pull_request'
@@ -198,6 +209,7 @@ jobs:
           context: .
           file: ./Dockerfile
           target: web
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.moodle.outputs.release }}-web

@@ -93,7 +93,8 @@ akan:
 1. Memvalidasi konfigurasi Docker dan script shell.
 2. Membuat serta menguji image PHP-FPM.
 3. Membuat dan mem-publish image nginx.
-4. Mendorong image ke GHCR pada push ke `main` atau tag `v*`.
+4. Mendorong image multi-arsitektur (`linux/amd64` dan `linux/arm64`) ke GHCR
+   pada push ke `main` atau tag `v*`.
 
 Image public yang dipublikasikan:
 
@@ -103,6 +104,7 @@ ghcr.io/diconic-dev/moodle:<version>-web
 ```
 
 Pull request hanya melakukan build dan smoke test; image tidak dipublish.
+Image yang sama dapat digunakan pada server x86_64 maupun ARM64.
 
 ## Konfigurasi
 
