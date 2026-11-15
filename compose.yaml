@@ -59,6 +59,7 @@ services:
       MOODLE_SSLPROXY: ${MOODLE_SSLPROXY:-0}
       TZ: ${TZ:-UTC}
     volumes:
+      - ./public:/var/www/moodle/public
       - moodledata:/var/www/moodledata
     depends_on:
       db:
@@ -114,6 +115,7 @@ services:
           php /var/www/moodle/admin/cli/cron.php || echo "[cron] run failed, retrying next minute"
         done
     volumes:
+      - ./public:/var/www/moodle/public
       - moodledata:/var/www/moodledata
     depends_on:
       db:

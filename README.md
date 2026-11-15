@@ -36,7 +36,40 @@ docker compose down
 ```
 
 Development menggunakan [compose.yaml](./compose.yaml), membangun image
-aplikasi dari `Dockerfile`, dan me-mount source tree ke container nginx.
+aplikasi dari `Dockerfile`, dan me-mount folder `public/` ke container
+`app` dan `cron`, serta source tree ke nginx.
+
+### Development plugin
+
+Setelah repository di-clone ke laptop developer:
+
+```bash
+git clone https://github.com/diconic-dev/moodle.git
+cd moodle
+cp .env.example .env
+docker compose up -d --build
+```
+
+Plugin dapat dikembangkan langsung di lokasi yang sesuai, misalnya:
+
+```text
+public/local/myplugin/
+public/mod/myplugin/
+public/blocks/myplugin/
+public/theme/mytheme/
+```
+
+Perubahan kode di `public/` langsung terbaca oleh `app`, `cron`, dan nginx.
+Untuk perubahan kode plugin biasa, developer tidak perlu menjalankan build
+lagi. Setelah perubahan struktur plugin atau database, jalankan:
+
+```bash
+docker compose exec app php admin/cli/upgrade.php
+docker compose exec app php admin/cli/purge_caches.php
+```
+
+Build ulang hanya diperlukan jika mengubah Dockerfile, PHP extensions,
+dependency Composer, konfigurasi PHP/nginx, atau script entrypoint.
 
 ## Production
 
