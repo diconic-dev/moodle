@@ -61,12 +61,14 @@ public/theme/mytheme/
 
 Perubahan kode di `public/` langsung terbaca oleh `app`, `cron`, dan nginx.
 Untuk perubahan kode plugin biasa, developer tidak perlu menjalankan build
-lagi. Setelah perubahan struktur plugin atau database, jalankan:
+lagi. Setelah perubahan struktur plugin atau database, jalankan helper script:
 
 ```bash
-docker compose exec app php admin/cli/upgrade.php
-docker compose exec app php admin/cli/purge_caches.php
+./moodle-upgrade.sh
 ```
+
+Script tersebut menjalankan upgrade Moodle lalu purge cache. Pastikan stack
+development sudah berjalan sebelum menjalankannya.
 
 Build ulang hanya diperlukan jika mengubah Dockerfile, PHP extensions,
 dependency Composer, konfigurasi PHP/nginx, atau script entrypoint.
@@ -126,8 +128,7 @@ akan:
 1. Memvalidasi konfigurasi Docker dan script shell.
 2. Membuat serta menguji image PHP-FPM.
 3. Membuat dan mem-publish image nginx.
-4. Mendorong image multi-arsitektur (`linux/amd64` dan `linux/arm64`) ke GHCR
-   pada push ke `main` atau tag `v*`.
+4. Mendorong image `linux/amd64` ke GHCR pada push ke `main` atau tag `v*`.
 
 Image public yang dipublikasikan:
 
@@ -137,7 +138,8 @@ ghcr.io/diconic-dev/moodle:<version>-web
 ```
 
 Pull request hanya melakukan build dan smoke test; image tidak dipublish.
-Image yang sama dapat digunakan pada server x86_64 maupun ARM64.
+Production ditargetkan untuk server x86_64. Docker Desktop pada Apple Silicon
+tetap dapat menjalankan image `linux/amd64` melalui emulasi.
 
 ## Konfigurasi
 
