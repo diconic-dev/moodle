@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/tmp/composer-cache \
         --no-scripts \
         --no-interaction \
         --prefer-dist \
-        --optimize-autoloader \
+        --classmap-authoritative \
         --no-progress \
         --ignore-platform-reqs
 
